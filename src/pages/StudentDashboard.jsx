@@ -1,260 +1,457 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { generateTextWithGemini } from '../services/gemini';
 import { HOSTEL_BLOCKS } from '../services/database';
+import TopBar from '../components/TopBar';
+import ProfileModal from '../components/ProfileModal';
+import { EmptyState, StatusTag } from '../components/ui';
+import { MealMotif } from '../components/FoodArt';
 
-export default function StudentDashboard({ menus, orders, onPlaceOrder, onLogout, student, onUpdateProfile, onDeleteAccount }) {
+const MOTIF_TINTS = [
+  { bg: '#FBEDE6', fg: 'var(--color-tomato)' },
+  { bg: '#E9F1EA', fg: 'var(--color-herb)' },
+  { bg: '#FAF1DD', fg: 'var(--color-amber-ink)' },
+  { bg: '#F4EDE1', fg: 'var(--color-ink-2)' },
+];
+const motifIndex = (id) => [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 4;
+
+const STEPS = ['Placed', 'Preparing', 'Out for Delivery'];
+
+export default function StudentDashboard({
+  menus,
+  orders,
+  onPlaceOrder,
+  onLogout,
+  student,
+  onUpdateProfile,
+  onDeleteAccount,
+}) {
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [hostel, setHostel] = useState(student.hostelBlock);
   const [room, setRoom] = useState(student.roomNo);
-  const [showHistory, setShowHistory] = useState(false);
+  const [tab, setTab] = useState('menu');
   const [showProfile, setShowProfile] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editName, setEditName] = useState(student.name);
-  const [editPhone, setEditPhone] = useState(student.phone);
-  const [editPassword, setEditPassword] = useState(student.password);
-  const [editHostel, setEditHostel] = useState(student.hostelBlock);
-  const [editRoom, setEditRoom] = useState(student.roomNo);
   const [analyzingMenuId, setAnalyzingMenuId] = useState(null);
   const [nutritionData, setNutritionData] = useState({});
 
-  const activeOrders = orders.filter(o => o.studentPhone === student.phone && o.status !== 'Delivered').reverse();
-  const pastOrders = orders.filter(o => o.studentPhone === student.phone && o.status === 'Delivered').reverse();
+  const activeOrders = orders.filter((o) => o.studentPhone === student.phone && o.status !== 'Delivered').reverse();
+  const pastOrders = orders.filter((o) => o.studentPhone === student.phone && o.status === 'Delivered').reverse();
 
   const handleAnalyzeNutrition = async (menuId, itemsText) => {
     setAnalyzingMenuId(menuId);
-    const systemInstruction = "You are a nutritionist. Provide ONLY a single short line estimating Calories, Protein, and Carbs. Format exactly like this: 'est. 450 kcal | 15g Protein | 60g Carbs'. No extra text or bullet points.";
+    const systemInstruction =
+      "You are a nutritionist. Provide ONLY a single short line estimating Calories, Protein, and Carbs. Format exactly like this: 'est. 450 kcal | 15g Protein | 60g Carbs'. No extra text or bullet points.";
     const prompt = `Analyze this meal: ${itemsText}`;
     const result = await generateTextWithGemini(prompt, systemInstruction);
-    setNutritionData(prev => ({ ...prev, [menuId]: result }));
+    setNutritionData((prev) => ({ ...prev, [menuId]: result }));
     setAnalyzingMenuId(null);
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-indigo-200">
-      <header className="bg-indigo-900 shadow-lg p-5 sticky top-0 z-10 flex justify-between items-center rounded-b-3xl">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-             <div className="w-6 h-6 bg-orange-500 rounded-md flex items-center justify-center shadow-sm">
-                <span className="text-white text-xs font-black">TC</span>
-             </div>
-             <h1 className="text-lg font-black text-white tracking-tight">TiffinConnect</h1>
-          </div>
-          <p className="text-xs text-indigo-200 font-medium ml-8">IIITDM Jabalpur</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowProfile(true)} className="w-10 h-10 bg-indigo-800/50 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-all border border-indigo-700">
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-          </button>
-          <button onClick={onLogout} className="w-10 h-10 bg-rose-500/10 hover:bg-rose-500 text-rose-300 hover:text-white rounded-full flex items-center justify-center transition-all border border-rose-500/20">
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-          </button>
-        </div>
-      </header>
+  const progressWidth = (status) => (status === 'Placed' ? '34%' : status === 'Preparing' ? '67%' : '100%');
 
-      {showProfile && (
-        <div className="fixed inset-0 bg-indigo-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto border border-slate-100">
-            <button onClick={() => {setShowProfile(false); setConfirmDelete(false);}} className="absolute top-5 right-5 text-slate-400 hover:text-slate-800 bg-slate-100 rounded-full p-1.5 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+  return (
+    <div className="min-h-screen flex flex-col">
+      <TopBar
+        title={`Hi, ${student.name.split(' ')[0]}`}
+        subtitle={`${student.hostelBlock} · Room ${student.roomNo}`}
+        actions={
+          <>
+            <button onClick={() => setShowProfile(true)} className="btn btn-outline btn-sm">
+              Profile
             </button>
-            <h2 className="text-2xl font-black text-slate-800 mb-6">My Profile</h2>
-            <form onSubmit={(e) => { e.preventDefault(); onUpdateProfile({ name: editName, phone: editPhone, password: editPassword, hostelBlock: editHostel, roomNo: editRoom }, 'student'); setShowProfile(false); setConfirmDelete(false); }} className="space-y-4">
-              <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Name</label><input required type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-              <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Phone</label><input required type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-              <div className="flex space-x-4">
-                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hostel</label><select value={editHostel} onChange={e=>setEditHostel(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">{HOSTEL_BLOCKS.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
-                <div className="w-1/3"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Room</label><input required type="text" value={editRoom} onChange={e=>setEditRoom(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+            <button onClick={onLogout} className="btn btn-ghost btn-sm" title="Sign out">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.7"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </>
+        }
+      />
+
+      <div className="shell py-7 md:py-9 flex-1">
+        <div className="grid lg:grid-cols-[318px_1fr] gap-8 lg:gap-10 items-start">
+          {/* ---------- left rail ---------- */}
+          <aside className="lg:sticky lg:top-[92px] space-y-5">
+            <div className="panel p-5">
+              <p className="eyebrow">Delivering to</p>
+              <p className="display-3 mt-2.5 leading-tight">{student.hostelBlock}</p>
+              <p className="text-[14.5px] text-ink-2 mt-1">Room {student.roomNo}</p>
+              <div className="rule mt-4 pt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="eyebrow">Live orders</p>
+                  <p className="num text-[1.6rem] leading-none mt-1.5">{activeOrders.length}</p>
+                </div>
+                <div>
+                  <p className="eyebrow">Delivered</p>
+                  <p className="num text-[1.6rem] leading-none mt-1.5">{pastOrders.length}</p>
+                </div>
               </div>
-              <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 mt-4">Save Changes</button>
-            </form>
-            <hr className="my-6 border-slate-100" />
-            {!confirmDelete ? (
-               <button onClick={() => setConfirmDelete(true)} className="w-full text-rose-500 font-bold py-3 rounded-xl border-2 border-rose-100 hover:bg-rose-50 transition-colors">Delete Account</button>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="eyebrow">Order tracking</p>
+                {activeOrders.length > 0 && (
+                  <span className="text-[11.5px] text-ink-3">{activeOrders.length} active</span>
+                )}
+              </div>
+
+              {activeOrders.length === 0 ? (
+                <div className="border border-dashed border-line-2 rounded-[6px] px-4 py-5">
+                  <p className="text-[14px] text-ink-3 leading-relaxed">
+                    No live orders. Pick a menu and your status will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeOrders.map((order) => {
+                    return (
+                      <article key={order.id} className="panel p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="text-[15.5px] font-semibold truncate" style={{ fontFamily: 'var(--font-sans)' }}>
+                              {order.vendorName}
+                            </h3>
+                            <p className="text-[12px] text-ink-3 mt-0.5">
+                              #{order.id.split('_')[1].slice(-6)} · Room {order.roomNo}
+                            </p>
+                          </div>
+                          <span className="tag tag-neutral shrink-0">×{order.quantity}</span>
+                        </div>
+
+                        <div className="mt-4">
+                          <div className="h-[3px] w-full bg-paper-3 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-[width] duration-500 ease-out ${
+                                order.status === 'Out for Delivery' ? 'bg-herb' : 'bg-tomato'
+                              }`}
+                              style={{ width: progressWidth(order.status) }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between mt-3">
+                            <StatusTag status={order.status} />
+                            <div className="flex gap-3 text-[10.5px] text-ink-3">
+                              {STEPS.map((s) => (
+                                <span key={s} className={order.status === s ? 'text-ink font-semibold' : ''}>
+                                  {s === 'Out for Delivery' ? 'On way' : s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* ---------- main ---------- */}
+          <section>
+            <div className="flex items-end justify-between gap-4 border-b border-line-2">
+              <div className="flex gap-1">
+                {[
+                  { key: 'menu', label: 'Today’s menu' },
+                  { key: 'history', label: 'Order history', count: pastOrders.length || null },
+                ].map((t) => {
+                  const active = tab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => setTab(t.key)}
+                      className={`relative px-3 pb-3 pt-1 text-[14.5px] font-semibold transition-colors ${
+                        active ? 'text-ink' : 'text-ink-3 hover:text-ink-2'
+                      }`}
+                    >
+                      {t.label}
+                      {t.count != null && <span className="ml-1.5 text-[11.5px] text-ink-3">{t.count}</span>}
+                      <span
+                        className={`absolute left-0 right-0 -bottom-px h-[2px] bg-tomato origin-left transition-transform duration-200 ${
+                          active ? 'scale-x-100' : 'scale-x-0'
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="hidden sm:block text-[12.5px] text-ink-3 pb-3">
+                {menus.length} menu{menus.length === 1 ? '' : 's'} live
+              </p>
+            </div>
+
+            {tab === 'menu' ? (
+              <div className="mt-6">
+                {menus.length === 0 ? (
+                  <EmptyState
+                    title="Menus aren’t published yet"
+                    copy="Kitchens post today’s food with a price and cut-off time. This list fills up as soon as they do."
+                    icon={<MealMotif variant={0} className="w-full h-full" />}
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {menus.map((menu) => {
+                      const tint = MOTIF_TINTS[motifIndex(menu.id)];
+                      const nutrition = nutritionData[menu.id];
+                      const analyzing = analyzingMenuId === menu.id;
+                      return (
+                        <article
+                          key={menu.id}
+                          className="panel p-4 sm:p-5 flex gap-4 sm:gap-5 transition-colors hover:border-line-2"
+                        >
+                          <div
+                            className="shrink-0 w-[74px] sm:w-[104px] h-[74px] sm:h-[96px] rounded-[5px] grid place-items-center"
+                            style={{ background: tint.bg, color: tint.fg }}
+                          >
+                            <MealMotif variant={motifIndex(menu.id)} className="w-[54px] sm:w-[72px] h-auto" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <h3 className="display-3 text-[1.15rem] sm:text-[1.3rem] truncate">{menu.vendorName}</h3>
+                                <p className="text-[12.5px] text-ink-3 mt-1">
+                                  Order before {menu.cutoffTime}
+                                  {menu.date ? ` · ${menu.date}` : ''}
+                                </p>
+                              </div>
+                              <p className="num text-[1.55rem] leading-none shrink-0">₹{menu.price}</p>
+                            </div>
+
+                            <p className="text-[14.5px] leading-relaxed text-ink-2 mt-2.5">{menu.items}</p>
+
+                            <div className="mt-3.5">
+                              {nutrition ? (
+                                <div className="border border-line rounded-[5px] bg-herb-50 px-3 py-2.5">
+                                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.13em] text-herb mb-1">
+                                    AI nutrition estimate
+                                  </p>
+                                  <p className="text-[13.5px] text-herb leading-snug">{nutrition}</p>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleAnalyzeNutrition(menu.id, menu.items)}
+                                  disabled={analyzing}
+                                  className="inline-flex items-center gap-2 text-[13px] font-semibold text-ink-2 hover:text-ink transition-colors disabled:opacity-60"
+                                >
+                                  {analyzing ? (
+                                    <>
+                                      <span className="w-3.5 h-3.5 rounded-full border-[1.5px] border-ink-3 border-t-ink animate-spin" />
+                                      Estimating nutrition…
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="1.8"
+                                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                                        />
+                                      </svg>
+                                      Nutrition estimate
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-line flex items-center justify-between gap-3">
+                              <span className="tag tag-herb">Available</span>
+                              <button onClick={() => { setSelectedMenu(menu); setQuantity(1); }} className="btn btn-dark btn-sm">
+                                Add to order
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             ) : (
-               <div className="bg-rose-50 p-4 rounded-2xl border border-rose-200 animate-in zoom-in duration-200">
-                 <p className="text-rose-700 text-sm font-bold mb-4 text-center">Delete your account permanently?</p>
-                 <div className="flex space-x-3">
-                   <button onClick={() => onDeleteAccount(student.id, 'student')} className="flex-1 bg-rose-600 text-white font-bold py-2.5 rounded-xl hover:bg-rose-700 transition-colors shadow-sm">Confirm</button>
-                   <button onClick={() => setConfirmDelete(false)} className="flex-1 bg-white text-slate-700 font-bold py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 transition-colors">Cancel</button>
-                 </div>
-               </div>
+              <div className="mt-6">
+                {pastOrders.length === 0 ? (
+                  <EmptyState
+                    title="No past orders"
+                    copy="Meals you’ve received will be listed here once a kitchen marks them delivered."
+                    icon={<MealMotif variant={2} className="w-full h-full" />}
+                  />
+                ) : (
+                  <ul className="border-t border-line">
+                    {pastOrders.map((order) => (
+                      <li key={order.id} className="flex items-center justify-between gap-4 py-4 border-b border-line">
+                        <div className="min-w-0">
+                          <p className="text-[15.5px] font-semibold truncate">{order.vendorName}</p>
+                          <p className="text-[12.5px] text-ink-3 mt-0.5">
+                            {new Date(order.timestamp).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                            {' · '}Room {order.roomNo}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="tag tag-neutral">×{order.quantity}</span>
+                          <StatusTag status="Delivered" />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
+          </section>
+        </div>
+      </div>
+
+      {/* ---------- order sheet ---------- */}
+      {selectedMenu && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <button
+            aria-label="Close"
+            onClick={() => {
+              setSelectedMenu(null);
+              setQuantity(1);
+            }}
+            className="absolute inset-0 bg-ink/45 backdrop-blur-[2px] animate-fade"
+          />
+          <div className="relative w-full sm:max-w-[460px] bg-card border border-line rounded-t-[10px] sm:rounded-[8px] shadow-[0_24px_60px_-24px_rgba(25,21,18,0.5)] animate-sheet sm:animate-rise max-h-[94vh] overflow-y-auto">
+            <div className="sm:hidden pt-3 pb-1 flex justify-center">
+              <span className="w-9 h-1 rounded-full bg-line-2" />
+            </div>
+
+            <div className="flex items-start justify-between gap-4 px-6 pt-4 sm:pt-6 pb-4 border-b border-line">
+              <div className="min-w-0">
+                <p className="eyebrow mb-2">Confirm order</p>
+                <h2 className="display-3">{selectedMenu.vendorName}</h2>
+                <p className="text-[13.5px] text-ink-3 mt-1.5">Cut-off at {selectedMenu.cutoffTime}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedMenu(null);
+                  setQuantity(1);
+                }}
+                className="w-8 h-8 grid place-items-center rounded-[4px] text-ink-3 hover:text-ink hover:bg-paper-2 transition-colors shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-6 py-5 border-b border-line bg-paper-2/50">
+              <p className="text-[14.5px] leading-relaxed text-ink-2">{selectedMenu.items}</p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onPlaceOrder({
+                  id: `ord_${Date.now()}`,
+                  menuId: selectedMenu.id,
+                  vendorId: selectedMenu.vendorId,
+                  vendorName: selectedMenu.vendorName,
+                  studentName: student.name,
+                  studentPhone: student.phone,
+                  hostelBlock: hostel,
+                  roomNo: room,
+                  quantity,
+                  status: 'Placed',
+                  timestamp: new Date().toISOString(),
+                });
+                setSelectedMenu(null);
+                setQuantity(1);
+                setTab('menu');
+              }}
+              className="px-6 py-5"
+            >
+              <div className="flex items-center justify-between py-3 border-b border-line">
+                <div>
+                  <p className="text-[15px] font-medium">Tiffin quantity</p>
+                  <p className="text-[12.5px] text-ink-3 mt-0.5">Meals for this order</p>
+                </div>
+                <div className="flex items-center gap-1 border border-line-2 rounded-[5px] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-10 h-10 grid place-items-center text-ink-2 hover:bg-paper-2 transition-colors text-lg leading-none"
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <span className="w-9 text-center num text-[17px]">{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-10 h-10 grid place-items-center text-ink-2 hover:bg-paper-2 transition-colors text-lg leading-none"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[1fr_96px] gap-3 py-4 border-b border-line">
+                <div>
+                  <label className="field-label">Hostel block</label>
+                  <select className="field" value={hostel} onChange={(e) => setHostel(e.target.value)}>
+                    {HOSTEL_BLOCKS.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Room no.</label>
+                  <input required type="text" className="field" value={room} onChange={(e) => setRoom(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="py-4">
+                <div className="flex items-center justify-between text-[14.5px] text-ink-2 py-1.5">
+                  <span>
+                    ₹{selectedMenu.price} × {quantity}
+                  </span>
+                  <span className="num">₹{selectedMenu.price * quantity}</span>
+                </div>
+                <div className="flex items-center justify-between text-[14.5px] text-ink-2 py-1.5">
+                  <span>Delivery</span>
+                  <span className="text-herb font-medium">Included</span>
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-3 border-t border-line">
+                  <span className="text-[15px] font-semibold">Total</span>
+                  <span className="num text-[1.5rem]">₹{selectedMenu.price * quantity}</span>
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary btn-lg btn-block">
+                Place order · ₹{selectedMenu.price * quantity}
+              </button>
+            </form>
           </div>
         </div>
       )}
 
-      <div className="p-4 max-w-md mx-auto space-y-6 -mt-3">
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black text-slate-800">Hi, {student.name.split(' ')[0]} 👋</h2>
-            <p className="text-sm text-slate-500 mt-0.5">{student.hostelBlock}, Room {student.roomNo}</p>
-          </div>
-          <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-500">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          </div>
-        </div>
-
-        <div className="flex bg-slate-200/70 p-1.5 rounded-2xl">
-          <button onClick={() => setShowHistory(false)} className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition-all duration-300 ${!showHistory ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Live Orders</button>
-          <button onClick={() => setShowHistory(true)} className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition-all duration-300 ${showHistory ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Past Tiffins</button>
-        </div>
-
-        {!showHistory ? (
-          activeOrders.length > 0 && (
-            <div className="space-y-4">
-              {activeOrders.map(order => (
-                <div key={order.id} className="bg-white border border-indigo-100 rounded-3xl p-5 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
-                  <div className="flex justify-between items-start mb-4 pl-2">
-                    <div>
-                      <h3 className="font-black text-slate-800 text-lg">{order.vendorName}</h3>
-                      <p className="text-xs text-slate-500 font-medium">Order #{order.id.split('_')[1].slice(-6)}</p>
-                    </div>
-                    <span className="bg-indigo-50 text-indigo-700 text-xs font-black px-3 py-1.5 rounded-xl border border-indigo-100">Qty: {order.quantity}</span>
-                  </div>
-                  <div className="pl-2">
-                    <div className="flex justify-between text-xs font-bold mb-2">
-                      <span className="text-slate-400">Placed</span>
-                      <span className="text-slate-400">Preparing</span>
-                      <span className="text-slate-400">On Way</span>
-                    </div>
-                    <div className="overflow-hidden h-2.5 mb-4 text-xs flex rounded-full bg-slate-100 shadow-inner">
-                      <div style={{ width: order.status === 'Placed' ? '33%' : order.status === 'Preparing' ? '66%' : '100%' }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-700 ease-out ${order.status === 'Out for Delivery' ? 'bg-emerald-500' : 'bg-indigo-500'}`}></div>
-                    </div>
-                    <div className="text-center">
-                       <span className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full ${order.status === 'Out for Delivery' ? 'text-emerald-700 bg-emerald-100' : 'text-indigo-700 bg-indigo-100'}`}>
-                         <span className="relative flex h-2 w-2"><span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${order.status === 'Out for Delivery' ? 'bg-emerald-400' : 'bg-indigo-400'}`}></span><span className={`relative inline-flex rounded-full h-2 w-2 ${order.status === 'Out for Delivery' ? 'bg-emerald-500' : 'bg-indigo-500'}`}></span></span>
-                         {order.status}
-                       </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        ) : (
-          <div className="space-y-4">
-             {pastOrders.length === 0 ? (
-                <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-300">
-                   <p className="text-slate-400 font-medium text-sm">No past orders found.</p>
-                </div>
-             ) : (
-               pastOrders.map(order => (
-                 <div key={order.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center opacity-80 hover:opacity-100 transition-opacity">
-                   <div>
-                     <h3 className="font-bold text-slate-800">{order.vendorName}</h3>
-                     <span className="text-slate-400 text-xs font-medium">{new Date(order.timestamp).toLocaleDateString()}</span>
-                   </div>
-                   <span className="bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-lg">Delivered</span>
-                 </div>
-               ))
-             )}
-          </div>
-        )}
-
-        <section>
-          <div className="flex items-center gap-2 mb-4 mt-6">
-             <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-             <h2 className="text-sm font-black text-slate-700 uppercase tracking-widest">Today's Menus</h2>
-          </div>
-          
-          {menus.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300">
-              <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              </div>
-              <h3 className="font-bold text-slate-600">Menus Not Published</h3>
-              <p className="text-slate-400 text-sm mt-1">Vendors haven't updated today's food.</p>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {menus.map(menu => (
-                <div key={menu.id} className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                  <div className="h-16 bg-gradient-to-r from-orange-400 to-rose-400 flex items-end px-5 pb-3 relative overflow-hidden">
-                     <div className="absolute top-[-20px] right-[-20px] w-24 h-24 bg-white opacity-10 rounded-full blur-xl"></div>
-                     <span className="bg-white/20 text-white backdrop-blur-md text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md">Lunch Special</span>
-                  </div>
-                  <div className="p-5 pt-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-black text-xl text-slate-800">{menu.vendorName}</h3>
-                      <span className="font-black text-orange-500 text-xl bg-orange-50 px-2 py-1 rounded-xl">₹{menu.price}</span>
-                    </div>
-                    
-                    <p className="text-slate-600 text-sm font-medium leading-relaxed mb-4 border-l-2 border-slate-200 pl-3">{menu.items}</p>
-                    
-                    <div className="mb-5">
-                      {nutritionData[menu.id] ? (
-                        <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 text-xs text-emerald-800 font-medium">
-                          <span className="font-bold block mb-1 flex items-center gap-1"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> AI Nutrition Estimate</span>
-                          {nutritionData[menu.id]}
-                        </div>
-                      ) : (
-                        <button onClick={() => handleAnalyzeNutrition(menu.id, menu.items)} disabled={analyzingMenuId === menu.id} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors">
-                          {analyzingMenuId === menu.id ? <><span className="animate-spin inline-block w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full"></span> Analyzing...</> : <>✨ AI Health Check</>}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                       <div className="flex items-center text-xs font-bold text-slate-500 bg-slate-50 w-max px-3 py-2 rounded-xl border border-slate-100">
-                         <svg className="w-4 h-4 mr-1.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                         Order before <span className="text-rose-500 ml-1">{menu.cutoffTime}</span>
-                       </div>
-                       <button onClick={() => setSelectedMenu(menu)} className="bg-slate-900 text-white font-black px-6 py-2.5 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 active:scale-95">Add</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {selectedMenu && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex flex-col justify-end z-50 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md mx-auto rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
-             <div className="flex justify-between items-center mb-6">
-               <div>
-                 <h2 className="text-2xl font-black text-slate-800">Confirm Order</h2>
-                 <p className="text-sm text-slate-500 font-medium">For {student.name.split(' ')[0]}</p>
-               </div>
-               <button onClick={() => {setSelectedMenu(null); setQuantity(1);}} className="p-2.5 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 hover:text-slate-800 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-               </button>
-             </div>
-             
-             <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 mb-6">
-                <p className="font-black text-indigo-900">{selectedMenu.vendorName}</p>
-                <p className="text-sm text-indigo-700/70 mt-1 font-medium">{selectedMenu.items}</p>
-             </div>
-
-             <form onSubmit={(e) => {
-                e.preventDefault();
-                onPlaceOrder({ id: `ord_${Date.now()}`, menuId: selectedMenu.id, vendorId: selectedMenu.vendorId, vendorName: selectedMenu.vendorName, studentName: student.name, studentPhone: student.phone, hostelBlock: hostel, roomNo: room, quantity, status: 'Placed', timestamp: new Date().toISOString() });
-                setSelectedMenu(null); setQuantity(1);
-             }} className="space-y-5">
-               <div className="flex items-center justify-between bg-white border-2 border-slate-100 p-2 rounded-2xl">
-                 <span className="ml-3 font-bold text-slate-700 text-sm">Tiffin Quantity</span>
-                 <div className="flex items-center gap-3">
-                   <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 bg-slate-100 rounded-xl font-black text-lg flex items-center justify-center hover:bg-slate-200 text-slate-600 transition-colors">-</button>
-                   <span className="font-black text-xl w-6 text-center text-slate-800">{quantity}</span>
-                   <button type="button" onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 bg-indigo-100 rounded-xl font-black text-lg flex items-center justify-center hover:bg-indigo-200 text-indigo-700 transition-colors">+</button>
-                 </div>
-               </div>
-
-               <div className="flex space-x-4">
-                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hostel Block</label><select value={hostel} onChange={e=>setHostel(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium">{HOSTEL_BLOCKS.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
-                <div className="w-1/3"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Room No</label><input required type="text" value={room} onChange={e=>setRoom(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium" /></div>
-              </div>
-              
-              <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-slate-800 transition-transform active:scale-95 shadow-xl shadow-slate-900/20 mt-4 flex justify-between px-6 items-center">
-                <span>Confirm Order</span>
-                <span className="text-lg bg-white/20 px-3 py-1 rounded-lg">₹{selectedMenu.price * quantity}</span>
-              </button>
-             </form>
-          </div>
-        </div>
+      {showProfile && (
+        <ProfileModal
+          role="student"
+          user={student}
+          onSave={(values) => {
+            onUpdateProfile(values, 'student');
+            setShowProfile(false);
+          }}
+          onDelete={onDeleteAccount}
+          onClose={() => setShowProfile(false)}
+        />
       )}
     </div>
   );

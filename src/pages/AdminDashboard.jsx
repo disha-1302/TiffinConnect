@@ -1,161 +1,286 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import TopBar from '../components/TopBar';
+import { StatusTag, Metric, EmptyState } from '../components/ui';
+import { Brand } from '../components/Brand';
+import { TiffinCarrier } from '../components/FoodArt';
 
-export default function AdminDashboard({ vendors, students, orders, onBack }) {
-  const [pin, setPin] = useState(''); const [auth, setAuth] = useState(false); const [err, setErr] = useState(false);
-  
-  if (!auth) return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl relative text-center">
-          <button onClick={onBack} className="absolute top-6 left-6 text-slate-400 hover:text-slate-800 transition-colors">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          </button>
-          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-          </div>
-          <h2 className="text-2xl font-black text-slate-800 mt-2">Admin Access</h2>
-          <p className="text-sm text-slate-500 mb-6">Enter PIN (132006)</p>
-          <form onSubmit={e=>{e.preventDefault();pin==='132006'?setAuth(true):(setErr(true),setPin(''));}}>
-            <input type="password" maxLength="6" value={pin} onChange={e=>{setPin(e.target.value);setErr(false);}} className={`w-full bg-slate-50 border ${err ? 'border-rose-500 text-rose-500' : 'border-slate-200 text-slate-800'} rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-black mb-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all`} placeholder="••••••" />
-            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 active:scale-95">Verify & Enter</button>
-          </form>
-        </div>
-      </div>
-  );
+const SECTIONS = [
+  { key: 'adm-overview', label: 'Overview' },
+  { key: 'adm-vendors', label: 'Vendors' },
+  { key: 'adm-students', label: 'Students' },
+  { key: 'adm-orders', label: 'Orders' },
+];
+
+function PinGate({ onBack, onAuth }) {
+  const [pin, setPin] = useState('');
+  const [err, setErr] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8 font-sans pb-20">
-      <div className="max-w-6xl mx-auto">
-        <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-100 sticky top-4 z-10">
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 bg-indigo-900 rounded-xl flex items-center justify-center shadow-inner">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-             </div>
-             <div>
-                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Database Overview</h1>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Super Admin Control Panel</p>
-             </div>
-          </div>
-          <button onClick={onBack} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-md shadow-slate-900/10">Exit Admin</button>
-        </header>
+    <div className="min-h-screen flex flex-col">
+      <div className="shell">
+        <div className="flex items-center justify-between h-[68px]">
+          <Brand size={24} />
+          <button onClick={onBack} className="btn btn-ghost btn-sm">
+            ← Back to site
+          </button>
+        </div>
+      </div>
 
-        {/* STATS CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-indigo-100 relative overflow-hidden group">
-            <div className="absolute left-0 top-0 w-1.5 h-full bg-indigo-500"></div>
-            <h3 className="text-slate-500 font-bold text-xs uppercase mb-1 tracking-wider">Total Registered Students</h3>
-            <p className="text-4xl font-black text-slate-800">{students.length}</p>
-          </div>
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-orange-100 relative overflow-hidden group">
-            <div className="absolute left-0 top-0 w-1.5 h-full bg-orange-500"></div>
-            <h3 className="text-slate-500 font-bold text-xs uppercase mb-1 tracking-wider">Total Tiffin Centers</h3>
-            <p className="text-4xl font-black text-slate-800">{vendors.length}</p>
-          </div>
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 relative overflow-hidden group">
-            <div className="absolute left-0 top-0 w-1.5 h-full bg-emerald-500"></div>
-            <h3 className="text-slate-500 font-bold text-xs uppercase mb-1 tracking-wider">Total Orders Processed</h3>
-            <p className="text-4xl font-black text-slate-800">{orders.length}</p>
+      <div className="flex-1 grid lg:grid-cols-2 items-stretch">
+        <div className="hidden lg:flex items-center justify-center border-r border-line bg-paper-2/50 p-10">
+          <div className="w-[280px] opacity-95">
+            <TiffinCarrier className="w-full h-auto" />
           </div>
         </div>
 
-        {/* DETAILED TABLES */}
-        <div className="space-y-8">
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-               <h2 className="text-lg font-black text-slate-800">Registered Vendors ({vendors.length})</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white border-b border-slate-200 text-xs uppercase text-slate-500 font-black tracking-wider">
-                    <th className="py-4 px-6">Center Name</th>
-                    <th className="py-4 px-6">Owner</th>
-                    <th className="py-4 px-6">Phone Number</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {vendors.length === 0 ? <tr><td colSpan="3" className="text-center py-8 text-slate-400 font-medium">No vendors found in database.</td></tr> : 
-                    vendors.map(v => (
-                      <tr key={v.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-4 px-6 font-bold text-slate-800">{v.name}</td>
-                        <td className="py-4 px-6 text-slate-600">{v.owner}</td>
-                        <td className="py-4 px-6 text-slate-600 font-mono font-medium">{v.phone}</td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div className="flex items-center px-6 sm:px-10 lg:px-16 py-14">
+          <div className="w-full max-w-[380px]">
+            <p className="eyebrow">Restricted</p>
+            <h1 className="display-1 text-[clamp(2.2rem,4vw,3rem)] mt-4">Admin access</h1>
+            <p className="lede mt-4">
+              Entry to the campus database — every registered student, kitchen and order in one
+              place.
+            </p>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-               <h2 className="text-lg font-black text-slate-800">Registered Students ({students.length})</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white border-b border-slate-200 text-xs uppercase text-slate-500 font-black tracking-wider">
-                    <th className="py-4 px-6">Student Name</th>
-                    <th className="py-4 px-6">Phone Number</th>
-                    <th className="py-4 px-6">Hostel & Room</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {students.length === 0 ? <tr><td colSpan="3" className="text-center py-8 text-slate-400 font-medium">No students found in database.</td></tr> : 
-                    students.map(s => (
-                      <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-4 px-6 font-bold text-slate-800">{s.name}</td>
-                        <td className="py-4 px-6 text-slate-600 font-mono font-medium">{s.phone}</td>
-                        <td className="py-4 px-6">
-                           <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-bold border border-indigo-100">
-                             {s.hostelBlock} - Rm {s.roomNo}
-                           </span>
-                        </td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (pin === '132006') onAuth();
+                else {
+                  setErr(true);
+                  setPin('');
+                }
+              }}
+              className="mt-9"
+            >
+              <label className="field-label">6-digit PIN</label>
+              <input
+                type="password"
+                maxLength="6"
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value);
+                  setErr(false);
+                }}
+                className={`field text-center text-2xl tracking-[0.5em] font-semibold ${
+                  err ? 'border-tomato text-tomato' : ''
+                }`}
+                placeholder="••••••"
+              />
+              {err && <p className="text-[13px] text-tomato mt-2">Incorrect PIN. Try again.</p>}
+              <button type="submit" className="btn btn-dark btn-lg btn-block mt-5">
+                Verify &amp; enter
+              </button>
+            </form>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-               <h2 className="text-lg font-black text-slate-800">Order Logs</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white border-b border-slate-200 text-xs uppercase text-slate-500 font-black tracking-wider">
-                    <th className="py-4 px-6">Order ID</th>
-                    <th className="py-4 px-6">Student</th>
-                    <th className="py-4 px-6">Vendor</th>
-                    <th className="py-4 px-6">Qty</th>
-                    <th className="py-4 px-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {orders.length === 0 ? <tr><td colSpan="5" className="text-center py-8 text-slate-400 font-medium">No orders recorded yet.</td></tr> : 
-                    [...orders].reverse().map(o => (
-                      <tr key={o.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-4 px-6 text-slate-400 font-mono text-xs">{o.id.replace('ord_', '')}</td>
-                        <td className="py-4 px-6 font-bold text-slate-800">{o.studentName}</td>
-                        <td className="py-4 px-6 text-slate-600">{o.vendorName}</td>
-                        <td className="py-4 px-6 font-black text-slate-800">x{o.quantity}</td>
-                        <td className="py-4 px-6">
-                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${o.status === 'Delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
-                             {o.status}
-                           </span>
-                        </td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
+            <p className="text-[13px] text-ink-3 mt-6 pt-5 border-t border-line">
+              Demo PIN <span className="font-semibold text-ink">132006</span>
+            </p>
           </div>
-          
         </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminDashboard({ vendors, students, orders, onBack }) {
+  const [auth, setAuth] = useState(false);
+  const [active, setActive] = useState('adm-overview');
+
+  useEffect(() => {
+    if (!auth) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActive(visible.target.id);
+      },
+      { rootMargin: '-25% 0px -60% 0px', threshold: [0.05, 0.3] }
+    );
+    SECTIONS.forEach((s) => {
+      const el = document.getElementById(s.key);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [auth]);
+
+  if (!auth)
+    return <PinGate onBack={onBack} onAuth={() => setAuth(true)} />;
+
+  const jump = (key) => {
+    setActive(key);
+    document.getElementById(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const th = 'py-3 px-5 text-left text-[11px] font-semibold uppercase tracking-[0.13em] text-ink-3 border-b border-line-2 whitespace-nowrap';
+  const td = 'py-3.5 px-5 text-[14.5px] border-b border-line align-middle';
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <TopBar
+        title="Database overview"
+        subtitle="Super admin control panel"
+        tabs={SECTIONS}
+        activeTab={active}
+        onTab={jump}
+        actions={
+          <button onClick={onBack} className="btn btn-dark btn-sm">
+            Exit admin
+          </button>
+        }
+      />
+
+      <div className="shell py-8 md:py-10 flex-1">
+        {/* stats */}
+        <section id="adm-overview" className="scroll-mt-28">
+          <div className="max-w-2xl">
+            <p className="eyebrow mb-3">Campus network</p>
+            <h1 className="display-2">Everything on record.</h1>
+          </div>
+
+          <div className="mt-6 panel grid grid-cols-1 sm:grid-cols-3 overflow-hidden">
+            <Metric label="Registered students" value={students.length} className="sm:border-r border-b sm:border-b-0 border-line" />
+            <Metric label="Tiffin centres" value={vendors.length} tone="tomato" className="border-b sm:border-b-0 sm:border-r border-line" />
+            <Metric label="Orders processed" value={orders.length} tone="herb" />
+          </div>
+        </section>
+
+        {/* vendors */}
+        <section id="adm-vendors" className="scroll-mt-28 mt-12">
+          <div className="flex items-end justify-between gap-4 border-b border-line-2 pb-3">
+            <div>
+              <p className="eyebrow mb-2.5">Management</p>
+              <h2 className="display-3 text-[1.5rem]">Registered vendors</h2>
+            </div>
+            <span className="tag tag-neutral">{vendors.length} total</span>
+          </div>
+
+          <div className="panel mt-5 overflow-x-auto">
+            <table className="w-full border-collapse min-w-[560px]">
+              <thead>
+                <tr>
+                  <th className={th}>Centre name</th>
+                  <th className={th}>Owner</th>
+                  <th className={th}>Phone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendors.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" className="p-0 border-b-0">
+                      <div className="px-5 py-8">
+                        <EmptyState title="No vendors registered" copy="Tiffin centres appear here once they create an account." />
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  vendors.map((v) => (
+                    <tr key={v.id} className="hover:bg-paper-2/60 transition-colors">
+                      <td className={`${td} font-medium`}>{v.name}</td>
+                      <td className={`${td} text-ink-2`}>{v.owner}</td>
+                      <td className={`${td} text-ink-2 tabular-nums`}>{v.phone}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* students */}
+        <section id="adm-students" className="scroll-mt-28 mt-12">
+          <div className="flex items-end justify-between gap-4 border-b border-line-2 pb-3">
+            <div>
+              <p className="eyebrow mb-2.5">Management</p>
+              <h2 className="display-3 text-[1.5rem]">Registered students</h2>
+            </div>
+            <span className="tag tag-neutral">{students.length} total</span>
+          </div>
+
+          <div className="panel mt-5 overflow-x-auto">
+            <table className="w-full border-collapse min-w-[560px]">
+              <thead>
+                <tr>
+                  <th className={th}>Name</th>
+                  <th className={th}>Phone</th>
+                  <th className={th}>Hostel &amp; room</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" className="p-0 border-b-0">
+                      <div className="px-5 py-8">
+                        <EmptyState title="No students registered" copy="Student accounts appear here as they sign up." />
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  students.map((s) => (
+                    <tr key={s.id} className="hover:bg-paper-2/60 transition-colors">
+                      <td className={`${td} font-medium`}>{s.name}</td>
+                      <td className={`${td} text-ink-2 tabular-nums`}>{s.phone}</td>
+                      <td className={td}>
+                        <span className="tag tag-neutral">
+                          {s.hostelBlock} · Rm {s.roomNo}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* orders */}
+        <section id="adm-orders" className="scroll-mt-28 mt-12 mb-4">
+          <div className="flex items-end justify-between gap-4 border-b border-line-2 pb-3">
+            <div>
+              <p className="eyebrow mb-2.5">Logs</p>
+              <h2 className="display-3 text-[1.5rem]">Order history</h2>
+            </div>
+            <span className="tag tag-neutral">{orders.length} total</span>
+          </div>
+
+          <div className="panel mt-5 overflow-x-auto">
+            <table className="w-full border-collapse min-w-[680px]">
+              <thead>
+                <tr>
+                  <th className={th}>Order</th>
+                  <th className={th}>Student</th>
+                  <th className={th}>Vendor</th>
+                  <th className={th}>Qty</th>
+                  <th className={th}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="p-0 border-b-0">
+                      <div className="px-5 py-8">
+                        <EmptyState title="No orders recorded yet" copy="Every placed order is logged here with its final status." />
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  [...orders].reverse().map((o) => (
+                    <tr key={o.id} className="hover:bg-paper-2/60 transition-colors">
+                      <td className={`${td} text-ink-3 text-[13px] tabular-nums`}>{o.id.replace('ord_', '')}</td>
+                      <td className={`${td} font-medium`}>{o.studentName}</td>
+                      <td className={`${td} text-ink-2`}>{o.vendorName}</td>
+                      <td className={`${td} font-semibold`}>×{o.quantity}</td>
+                      <td className={td}>
+                        <StatusTag status={o.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   );

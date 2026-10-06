@@ -1,22 +1,38 @@
-import React from 'react';
-
 export default function CustomModal({ isOpen, title, message, onClose, isSuccess }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-indigo-950/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center relative border border-slate-100 transform scale-100 hover:scale-[1.02] transition-transform">
-        <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-inner ${isSuccess ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-          {isSuccess ? (
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-          ) : (
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
-          )}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/45 backdrop-blur-[2px] animate-fade" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full max-w-[400px] bg-card border border-line rounded-[8px] shadow-[0_28px_70px_-28px_rgba(25,21,18,0.5)] animate-rise overflow-hidden"
+      >
+        <div className={`h-[3px] w-full ${isSuccess ? 'bg-herb' : 'bg-tomato'}`} />
+        <div className="px-7 pt-6 pb-7">
+          <div className="flex items-start gap-3.5">
+            <span
+              className={`mt-0.5 shrink-0 w-7 h-7 rounded-full grid place-items-center border ${
+                isSuccess ? 'border-herb text-herb bg-herb-50' : 'border-tomato text-tomato bg-tomato-50'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isSuccess ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 13l4 4L19 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M6 18L18 6M6 6l12 12" />
+                )}
+              </svg>
+            </span>
+            <div className="min-w-0">
+              <h2 className="display-3 text-[1.25rem]">{title}</h2>
+              <p className="prose-sm mt-2 whitespace-pre-wrap">{message}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="btn btn-dark btn-block mt-6">
+            Got it
+          </button>
         </div>
-        <h2 className="text-xl font-black text-slate-800 mb-2">{title}</h2>
-        <p className="text-sm text-slate-500 mb-6 leading-relaxed whitespace-pre-wrap">{message}</p>
-        <button onClick={onClose} className="w-full bg-indigo-900 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-800 transition-colors shadow-md shadow-indigo-900/20">
-          Got it
-        </button>
       </div>
     </div>
   );

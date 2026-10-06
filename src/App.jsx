@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MockFirebase } from './services/database';
 import CustomModal from './components/CustomModal';
 import AuthScreen from './pages/AuthScreen';
@@ -18,6 +18,7 @@ export default function App() {
   useEffect(() => {
     const uM = MockFirebase.subscribe('menus', setMenus); const uO = MockFirebase.subscribe('orders', setOrders);
     const uV = MockFirebase.subscribe('vendors', setVendors); const uS = MockFirebase.subscribe('students', setStudents);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(false); return () => { uM(); uO(); uV(); uS(); };
   }, []);
 
@@ -36,11 +37,19 @@ export default function App() {
   const handleProfile = async (data, role) => { await MockFirebase.updateDoc(role === 'vendor' ? 'vendors' : 'students', activeUser.id, data); const n = { ...activeUser, ...data }; setActiveUser(n); localStorage.setItem('tc_user', JSON.stringify(n)); showModal('Updated', 'Profile saved.', true); };
   const handleDelete = async (id, role) => { await MockFirebase.deleteDoc(role === 'vendor' ? 'vendors' : 'students', id); handleLogout(); showModal('Deleted', 'Account removed.', true); };
 
-  if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-black">Loading...</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4">
+        <div className="w-6 h-6 rounded-full border-2 border-line-2 border-t-ink animate-spin" />
+        <p className="eyebrow">Tiffin Connect</p>
+      </div>
+    );
 
   return (
     <>
-      {currentView === 'landing' && <LandingPage setCurrentView={setCurrentView} />}
+      {currentView === 'landing' && (
+        <LandingPage setCurrentView={setCurrentView} menus={menus} vendors={vendors} />
+      )}
       {currentView === 'admin-dashboard' && <AdminDashboard vendors={vendors} students={students} orders={orders} onBack={() => setCurrentView('landing')} />}
       {currentView === 'auth-student' && <AuthScreen type="student" vendors={vendors} students={students} onLogin={handleAuth} onSignup={handleSignup} onUpdatePassword={handleUpdatePassword} onBack={() => setCurrentView('landing')} showModal={showModal} />}
       {currentView === 'auth-vendor' && <AuthScreen type="vendor" vendors={vendors} students={students} onLogin={handleAuth} onSignup={handleSignup} onUpdatePassword={handleUpdatePassword} onBack={() => setCurrentView('landing')} showModal={showModal} />}
